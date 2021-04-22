@@ -33,6 +33,10 @@ func (cmd *Command) Serialize() []byte {
 // Execute sends Command cmd over Connection and waits for reply.
 // Returns the command reply event pointer or an error if any.
 func (cmd Command) Execute(con *Connection) (*Event, error) {
+
+	con.lock.Lock()
+	defer con.lock.Unlock()
+
 	_, err := con.Write(cmd.Serialize())
 	if err != nil {
 		return nil, fmt.Errorf("execute command: con write: %v", err)

@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type ConnectionHandler interface {
 }
 
 type Connection struct {
+	lock       sync.Mutex
 	socket     net.Conn
 	buffer     *bufio.ReadWriter
 	cmdReply   chan *Event
@@ -36,10 +38,10 @@ type Connection struct {
 	UserData   interface{}
 }
 
-func NewConnection(host string, handler ConnectionHandler) (*Connection, error) {
+func NewConnection(host, pwd string, handler ConnectionHandler) (*Connection, error) {
 	con := Connection{
 		Address:  host,
-		Password: "ClueCon",
+		Password: pwd,
 		Timeout:  3 * time.Second,
 		Handler:  handler,
 	}
@@ -60,6 +62,10 @@ func (con *Connection) SendRecv(cmd string, args ...string) (*Event, error) {
 		buf.WriteString(arg)
 	}
 	buf.WriteString("\n\n")
+
+	con.lock.Lock()
+	defer con.lock.Unlock()
+
 	_, err := con.Write(buf.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("send bytes: %v", err)
@@ -102,12 +108,18 @@ func (con *Connection) SendEvent(cmd string, headers map[string]string, body []b
 }
 
 func (con *Connection) Api(cmd string, args ...string) (string, error) {
+
 	buf := bytes.NewBufferString("api " + cmd)
 	for _, arg := range args {
 		buf.WriteString(" ")
 		buf.WriteString(arg)
 	}
+
 	buf.WriteString("\n\n")
+
+	con.lock.Lock()
+	defer con.lock.Unlock()
+
 	_, err := con.Write(buf.Bytes())
 	if err != nil {
 		return "", fmt.Errorf("send bytes: %v", err)
@@ -200,6 +212,7 @@ func (con *Connection) Authenticate() error {
 }
 
 func (con *Connection) HandleEvents() error {
+
 	for con.Connected {
 		ev, err := NewEventFromReader(con.buffer.Reader)
 		if err != nil {
