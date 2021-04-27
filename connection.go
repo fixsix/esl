@@ -45,8 +45,8 @@ func NewConnection(host, pwd string, handler ConnectionHandler) (*Connection, er
 		Timeout:  3 * time.Second,
 		Handler:  handler,
 	}
-	con.cmdReply = make(chan *Event)
-	con.apiResp = make(chan *Event)
+	con.cmdReply = make(chan *Event, 5)
+	con.apiResp = make(chan *Event, 5)
 	err := con.ConnectRetry(3)
 	if err != nil {
 		return nil, fmt.Errorf("connect: %v", err)
