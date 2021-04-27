@@ -35,9 +35,8 @@ func (cmd *Command) Serialize() []byte {
 func (cmd Command) Execute(con *Connection) (*Event, error) {
 
 	con.lock.Lock()
-	defer con.lock.Unlock()
-
 	_, err := con.Write(cmd.Serialize())
+	con.lock.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("execute command: con write: %v", err)
 	}

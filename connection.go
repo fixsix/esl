@@ -64,9 +64,8 @@ func (con *Connection) SendRecv(cmd string, args ...string) (*Event, error) {
 	buf.WriteString("\n\n")
 
 	con.lock.Lock()
-	defer con.lock.Unlock()
-
 	_, err := con.Write(buf.Bytes())
+	con.lock.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("send bytes: %v", err)
 	}
@@ -118,9 +117,8 @@ func (con *Connection) Api(cmd string, args ...string) (string, error) {
 	buf.WriteString("\n\n")
 
 	con.lock.Lock()
-	defer con.lock.Unlock()
-
 	_, err := con.Write(buf.Bytes())
+	con.lock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("send bytes: %v", err)
 	}
