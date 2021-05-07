@@ -40,6 +40,9 @@ func (cmd Command) Execute(con *Connection) (*Event, error) {
 	if err != nil {
 		return nil, fmt.Errorf("execute command: con write: %v", err)
 	}
-	ev := <-con.cmdReply
+	ev, ok := <-con.cmdReply
+	if ok == false {
+		return nil, fmt.Errorf("esl is closed")
+	}
 	return ev, nil
 }

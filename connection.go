@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +46,7 @@ func NewConnection(host, pwd string, handler ConnectionHandler) (*Connection, er
 		Timeout:  3 * time.Second,
 		Handler:  handler,
 	}
+
 	con.cmdReply = make(chan *Event, 5)
 	con.apiResp = make(chan *Event, 5)
 	err := con.ConnectRetry(3)
@@ -69,7 +71,10 @@ func (con *Connection) SendRecv(cmd string, args ...string) (*Event, error) {
 	if err != nil {
 		return nil, fmt.Errorf("send bytes: %v", err)
 	}
-	ev := <-con.cmdReply
+	ev, ok := <-con.cmdReply
+	if ok == false {
+		return nil, fmt.Errorf("esl is closed")
+	}
 	reply := ev.Get("Reply-Text")
 	if strings.HasPrefix(reply, "-ERR") {
 		return nil, fmt.Errorf("SendRecv %s %s: %s", cmd, args, strings.TrimSpace(reply))
@@ -122,7 +127,10 @@ func (con *Connection) Api(cmd string, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("send bytes: %v", err)
 	}
-	ev := <-con.apiResp
+	ev, ok := <-con.apiResp
+	if false == ok {
+		return "", fmt.Errorf("connect is close")
+	}
 	resp := strings.TrimSpace(string(ev.RawBody))
 	if strings.HasPrefix(resp, "-ERR") {
 		return "", fmt.Errorf("api %s %s: %s", cmd, args, resp)
@@ -211,6 +219,9 @@ func (con *Connection) Authenticate() error {
 
 func (con *Connection) HandleEvents() error {
 
+	pc, file, line, _ := runtime.Caller(1)
+	log.Printf("close caller from:%s:%s %s", file, line, pc)
+
 	for con.Connected {
 		ev, err := NewEventFromReader(con.buffer.Reader)
 		if err != nil {
@@ -220,6 +231,7 @@ func (con *Connection) HandleEvents() error {
 			con.Close()
 			return fmt.Errorf("event read loop: %v\n", err)
 		}
+
 		switch ev.Type {
 		case EventError:
 			return fmt.Errorf("invalid event: [%s]", ev)
@@ -242,7 +254,11 @@ func (con *Connection) Write(b []byte) (int, error) {
 }
 
 func (con *Connection) Close() {
+
 	if con.Connected {
+
+		close(con.cmdReply)
+		close(con.apiResp)
 		con.Connected = false
 		con.Handler.OnClose(con)
 	}
