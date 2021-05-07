@@ -174,7 +174,7 @@ func NewEventFromReader(r *bufio.Reader) (*Event, error) {
 		e.Type = EventCommandReply
 		reply := e.Get("Reply-Text")
 		if !strings.Contains(reply, "+OK") && !strings.Contains(reply, "%2BOK") {
-			return nil, fmt.Errorf("command error: %s", strings.TrimSpace(reply))
+			//return nil, fmt.Errorf("command error: %s", strings.TrimSpace(reply))
 		}
 		if strings.Contains(reply, "%") {
 			e.Header.IsEscaped = true

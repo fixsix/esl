@@ -11,7 +11,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -85,8 +84,8 @@ func (con *Connection) SendRecv(cmd string, args ...string) (*Event, error) {
 func (con *Connection) MustSendRecv(cmd string, args ...string) *Event {
 	ev, err := con.SendRecv(cmd, args...)
 	if err != nil {
-		con.Close()
-		log.Fatal("ERR: ", err)
+		log.Fatal("MustSendRecv ERR: ", err)
+		return nil
 	}
 	return ev
 }
@@ -103,7 +102,11 @@ func (con *Connection) SendEvent(cmd string, headers map[string]string, body []b
 	if err != nil {
 		return nil, fmt.Errorf("send event: %v", err)
 	}
-	ev := <-con.cmdReply
+	ev, ok := <-con.cmdReply
+	if false == ok {
+		log.Fatal("MustSendRecv ERR: ", err)
+		return nil, fmt.Errorf("esl is close")
+	}
 	reply := ev.Get("Reply-Text")
 	if strings.HasPrefix(reply, "-ERR") {
 		return nil, fmt.Errorf("send event %s: %s", cmd, strings.TrimSpace(reply))
@@ -219,9 +222,6 @@ func (con *Connection) Authenticate() error {
 
 func (con *Connection) HandleEvents() error {
 
-	pc, file, line, _ := runtime.Caller(1)
-	log.Printf("close caller from:%s:%s %s", file, line, pc)
-
 	for con.Connected {
 		ev, err := NewEventFromReader(con.buffer.Reader)
 		if err != nil {
@@ -229,6 +229,7 @@ func (con *Connection) HandleEvents() error {
 				return nil
 			}
 			con.Close()
+			log.Print("event read loop: %v\n", err)
 			return fmt.Errorf("event read loop: %v\n", err)
 		}
 
