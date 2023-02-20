@@ -255,3 +255,12 @@ func (e *Event) parseTextBody() error {
 	e.Stamp, err = strconv.Atoi(e.Get("Event-Date-Timestamp"))
 	return err
 }
+
+func (e *Event) ProfileIsInternal() bool {
+	profile := e.Get("variable_sofia_profile_name")
+	if "internal" == profile {
+		return true
+	} else {
+		return false
+	}
+}
